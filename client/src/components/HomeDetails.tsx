@@ -167,7 +167,7 @@ export default function HomeDetails({ imageSrc, depthSrc, setStory, darkMode }: 
                     </div>
 
                     {/* Compact Label Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-2">
+                    <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent flex items-end p-2">
                       <p className="text-[8px] font-mono font-bold tracking-tight text-white/90 truncate w-full">
                         {item.title}
                       </p>
@@ -218,7 +218,7 @@ export default function HomeDetails({ imageSrc, depthSrc, setStory, darkMode }: 
               </div>
 
               {/* Toast info on the canvas overlay */}
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none bg-black/85 backdrop-blur-lg px-4 py-2.5 rounded-xl text-xs text-white/90 border border-white/10 font-sans shadow-xl text-center">
+              <div className=" absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none bg-black/85 backdrop-blur-lg px-4 py-2.5 rounded-xl text-xs text-white/90 border border-white/10 font-sans shadow-xl text-center">
                 Move your cursor to drift the dimensional field • Press <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] border border-zinc-700">ESC</kbd> to exit
               </div>
             </div>

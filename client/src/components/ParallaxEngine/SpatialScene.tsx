@@ -1,4 +1,4 @@
-import React, { Suspense, useMemo, useRef, useEffect } from "react";
+import React, { Suspense, useMemo, useRef, useEffect, useState } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -12,19 +12,13 @@ function SpatialPhoto({
   imageSrc,
   depthSrc,
   isFullscreen = false,
-}: SpatialSceneProps) {
+  tiltRef,
+}: SpatialSceneProps & { tiltRef: React.RefObject<{ x: number; y: number; isSupported: boolean }> }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const { camera, pointer } = useThree();
 
-  const imageTexture = useLoader(
-    THREE.TextureLoader,
-    imageSrc
-  );
-
-  const depthTexture = useLoader(
-    THREE.TextureLoader,
-    depthSrc
-  );
+  const imageTexture = useLoader(THREE.TextureLoader, imageSrc);
+  const depthTexture = useLoader(THREE.TextureLoader, depthSrc);
 
   // Safely cast image to HTMLImageElement to fix compilation
   const imgElement = imageTexture.image as HTMLImageElement;
@@ -37,7 +31,7 @@ function SpatialPhoto({
   useEffect(() => {
     let active = true;
 
-    if ('fov' in camera) {
+    if ("fov" in camera) {
       requestAnimationFrame(() => {
         if (!active) return;
         const pCamera = camera as THREE.PerspectiveCamera;
@@ -66,20 +60,25 @@ function SpatialPhoto({
   }, [imageTexture, depthTexture]);
 
   useFrame(() => {
-    const targetX = pointer.x * 0.18;
-    const targetY = pointer.y * 0.1;
+    // If mobile tilt data is active, use it. Otherwise, fall back to desktop pointer.
+    const inputX = tiltRef.current.isSupported ? tiltRef.current.x : pointer.x;
+    const inputY = tiltRef.current.isSupported ? tiltRef.current.y : pointer.y;
+
+    // TUNING UPGRADED: Expanded camera movement bounds for deeper look-around
+    const targetX = inputX * 0.25;
+    const targetY = inputY * 0.15;
 
     // Smoothly drift the camera
     camera.position.x += (targetX - camera.position.x) * 0.05;
     camera.position.y += (-targetY - camera.position.y) * 0.05;
     camera.lookAt(0, 0, 0);
 
-    // Smoothly update the uParallax uniform to match the camera's inertia
+    // Smoothly update the uParallax uniform to match the input's inertia
     if (meshRef.current) {
       const material = meshRef.current.material as THREE.ShaderMaterial;
       if (material.uniforms && material.uniforms.uParallax) {
-        material.uniforms.uParallax.value.x += (pointer.x - material.uniforms.uParallax.value.x) * 0.05;
-        material.uniforms.uParallax.value.y += (pointer.y - material.uniforms.uParallax.value.y) * 0.05;
+        material.uniforms.uParallax.value.x += (inputX - material.uniforms.uParallax.value.x) * 0.05;
+        material.uniforms.uParallax.value.y += (inputY - material.uniforms.uParallax.value.y) * 0.05;
       }
     }
   });
@@ -87,20 +86,11 @@ function SpatialPhoto({
   const material = useMemo(() => {
     return new THREE.ShaderMaterial({
       uniforms: {
-        uImage: {
-          value: imageTexture,
-        },
-        uDepth: {
-          value: depthTexture,
-        },
-        uDisplacement: {
-          value: 0.65,
-        },
-        uParallax: {
-          value: new THREE.Vector2(0, 0),
-        },
+        uImage: { value: imageTexture },
+        uDepth: { value: depthTexture },
+        uDisplacement: { value: 0.65 },
+        uParallax: { value: new THREE.Vector2(0, 0) },
       },
-
       vertexShader: `
         uniform sampler2D uDepth;
         uniform float uDisplacement;
@@ -110,71 +100,38 @@ function SpatialPhoto({
 
         void main() {
           vUv = uv;
-
           vec3 pos = position;
 
-          float depth =
-            texture2D(
-              uDepth,
-              uv
-            ).r;
-
-          depth = smoothstep(
-            0.05,
-            0.95,
-            depth
-          );
-
-          depth = pow(
-            depth,
-            1.4
-          );
+          float depth = texture2D(uDepth, uv).r;
+          depth = smoothstep(0.05, 0.95, depth);
+          depth = pow(depth, 1.4);
 
           float centeredDepth = depth - 0.5;
 
           // Apply physical 3D displacement
           pos.z += centeredDepth * uDisplacement;
 
-          // Apply depth-dependent lateral parallax drift
-          pos.x += centeredDepth * uParallax.x * 0.05;
-          pos.y += centeredDepth * uParallax.y * 0.03;
+          // TUNING UPGRADED: Stronger depth coupling for a floating foreground separation
+          pos.x += centeredDepth * uParallax.x * 0.12;
+          pos.y += centeredDepth * uParallax.y * 0.08;
 
-          gl_Position =
-            projectionMatrix *
-            modelViewMatrix *
-            vec4(pos, 1.0);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
         }
       `,
-
       fragmentShader: `
         uniform sampler2D uImage;
-
         varying vec2 vUv;
 
         void main() {
-          gl_FragColor =
-            texture2D(
-              uImage,
-              vUv
-            );
+          gl_FragColor = texture2D(uImage, vUv);
         }
       `,
     });
   }, [imageTexture, depthTexture]);
 
   return (
-    <mesh
-      ref={meshRef}
-      material={material}
-    >
-      <planeGeometry
-        args={[
-          planeWidth,
-          planeHeight,
-          300,
-          300,
-        ]}
-      />
+    <mesh ref={meshRef} material={material}>
+      <planeGeometry args={[planeWidth, planeHeight, 300, 300]} />
     </mesh>
   );
 }
@@ -184,12 +141,100 @@ export default function SpatialScene({
   depthSrc,
   isFullscreen = false,
 }: SpatialSceneProps) {
+  // Store live tilt data inside a Ref to avoid performance-killing React state updates
+  const tiltRef = useRef({ x: 0, y: 0, isSupported: false });
+  const initialOrientation = useRef<{ beta: number | null; gamma: number | null }>({ beta: null, gamma: null });
+
+  const [requiresPermission, setRequiresPermission] = useState(false);
+  const [permissionGranted, setPermissionGranted] = useState(false);
+
+  // 1. Detect if this is an iOS device requiring explicit motion permission
+  useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      typeof (window as any).DeviceOrientationEvent !== "undefined" &&
+      typeof (window as any).DeviceOrientationEvent.requestPermission === "function"
+    ) {
+      setRequiresPermission(true);
+    } else {
+      // Android / standard web environments don't require permission gates
+      setPermissionGranted(true);
+    }
+  }, []);
+
+  // 2. Setup the Orientation Event Listener
+  useEffect(() => {
+    if (!permissionGranted) return;
+
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      const { beta, gamma } = event;
+      if (beta === null || gamma === null) return;
+
+      tiltRef.current.isSupported = true;
+
+      // Dynamic Calibration: Locks baseline holding posture on first reading
+      if (initialOrientation.current.beta === null) {
+        initialOrientation.current.beta = beta;
+        initialOrientation.current.gamma = gamma;
+      }
+
+      // Calculate displacement relative to holding angle
+      let deltaBeta = beta - (initialOrientation.current.beta ?? 60);
+      let deltaGamma = gamma - (initialOrientation.current.gamma ?? 0);
+
+      // Clamp target rotation range to a physical comfortable swing (max 20 degrees)
+      const maxAngle = 20;
+      deltaBeta = Math.max(-maxAngle, Math.min(maxAngle, deltaBeta));
+      deltaGamma = Math.max(-maxAngle, Math.min(maxAngle, deltaGamma));
+
+      // Map to normalized swing range (-1.0 to 1.0)
+      tiltRef.current.x = deltaGamma / maxAngle;
+      tiltRef.current.y = deltaBeta / maxAngle;
+    };
+
+    window.addEventListener("deviceorientation", handleOrientation);
+    return () => {
+      window.removeEventListener("deviceorientation", handleOrientation);
+    };
+  }, [permissionGranted]);
+
+  // 3. User-gesture handler to unlock iOS gyroscope
+  const handleRequestPermission = async () => {
+    const requestPermissionFn = (window as any).DeviceOrientationEvent?.requestPermission;
+    if (typeof requestPermissionFn === "function") {
+      try {
+        const status = await requestPermissionFn();
+        if (status === "granted") {
+          setPermissionGranted(true);
+          setRequiresPermission(false);
+        }
+      } catch (err) {
+        console.warn("Failed to obtain sensor access authorization:", err);
+      }
+    }
+  };
+
   return (
-    <div 
-      className={`w-full rounded-2xl overflow-hidden transition-all duration-300 ${
+    <div
+      className={`relative w-full rounded-2xl overflow-hidden transition-all duration-300 ${
         isFullscreen ? "h-full min-h-[70vh]" : "h-[500px]"
       }`}
     >
+      {/* iOS Gesture Trigger Overlay */}
+      {requiresPermission && !permissionGranted && (
+        <div className="absolute inset-0 bg-black/60 z-10 flex flex-col items-center justify-center gap-3 p-4 text-center">
+          <p className="text-white text-sm font-medium">
+            Grant motion permission to unlock 3D device-tilting!
+          </p>
+          <button
+            onClick={handleRequestPermission}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition"
+          >
+            Enable Motion
+          </button>
+        </div>
+      )}
+
       <Canvas
         dpr={[1, 2]}
         camera={{
@@ -204,6 +249,7 @@ export default function SpatialScene({
             imageSrc={imageSrc}
             depthSrc={depthSrc}
             isFullscreen={isFullscreen}
+            tiltRef={tiltRef}
           />
         </Suspense>
       </Canvas>

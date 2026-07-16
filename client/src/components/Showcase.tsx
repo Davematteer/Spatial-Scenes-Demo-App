@@ -284,7 +284,7 @@ export default function Showcase({ darkMode }: ShowcaseProps) {
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
 
-          <span className={`text-xs font-bold font-mono ${darkMode ? "text-zinc-400" : "text-zinc-500"}`}>
+          <span className={`md:text-xs font-bold font-mono ${darkMode ? "text-zinc-400" : "text-zinc-500"}`}>
             Page {currentPage} of {totalPages}
           </span>
 
@@ -353,7 +353,7 @@ export default function Showcase({ darkMode }: ShowcaseProps) {
               </div>
 
               {/* Dynamic instruction badge */}
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none bg-black/85 backdrop-blur-lg px-4 py-2.5 rounded-xl text-xs text-white/90 border border-white/10 font-sans shadow-xl text-center">
+              <div className="hidden md:block absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none bg-black/85 backdrop-blur-lg px-4 py-2.5 rounded-xl text-xs text-white/90 border border-white/10 font-sans shadow-xl text-center">
                 Move your cursor to drift the dimensional field • Press <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] border border-zinc-700">ESC</kbd> to exit
               </div>
             </div>
