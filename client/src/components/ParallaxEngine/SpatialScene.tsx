@@ -64,9 +64,9 @@ function SpatialPhoto({
     const inputX = tiltRef.current.isSupported ? tiltRef.current.x : pointer.x;
     const inputY = tiltRef.current.isSupported ? tiltRef.current.y : pointer.y;
 
-    // TUNING UPGRADED: Expanded camera movement bounds for deeper look-around
-    const targetX = inputX * 0.25;
-    const targetY = inputY * 0.15;
+    // TUNING UPGRADED: Tighter, subtle camera constraints to keep movement within safe boundaries
+    const targetX = inputX * 0.12;
+    const targetY = inputY * 0.08;
 
     // Smoothly drift the camera
     camera.position.x += (targetX - camera.position.x) * 0.05;
@@ -88,7 +88,7 @@ function SpatialPhoto({
       uniforms: {
         uImage: { value: imageTexture },
         uDepth: { value: depthTexture },
-        uDisplacement: { value: 0.65 },
+        uDisplacement: { value: 0.4 }, // Reduced displacement strength (tuned down from 0.65)
         uParallax: { value: new THREE.Vector2(0, 0) },
       },
       vertexShader: `
@@ -102,18 +102,36 @@ function SpatialPhoto({
           vUv = uv;
           vec3 pos = position;
 
-          float depth = texture2D(uDepth, uv).r;
+          // OPTIMIZATION 1: 5-Tap Box Blur on the depth texture directly in the shader
+          float depth = (
+            texture2D(uDepth, uv + vec2(-0.001, 0.0)).r +
+            texture2D(uDepth, uv + vec2( 0.001, 0.0)).r +
+            texture2D(uDepth, uv + vec2(0.0, -0.001)).r +
+            texture2D(uDepth, uv + vec2(0.0,  0.001)).r +
+            texture2D(uDepth, uv).r
+          ) / 5.0;
+
+          // Inverse depth curve smoothing
           depth = smoothstep(0.05, 0.95, depth);
           depth = pow(depth, 1.4);
 
           float centeredDepth = depth - 0.5;
 
+          // OPTIMIZATION 2: Edge Attenuation to kill tearing along sharp depth transitions
+          float d1 = texture2D(uDepth, uv).r;
+          float d2 = texture2D(uDepth, uv + vec2(0.002, 0.0)).r;
+          float edge = abs(d1 - d2);
+          float attenuation = 1.0 - smoothstep(0.05, 0.15, edge);
+
+          // Apply attenuation to limit displacement near sharp object edges
+          centeredDepth *= attenuation;
+
           // Apply physical 3D displacement
           pos.z += centeredDepth * uDisplacement;
 
-          // TUNING UPGRADED: Stronger depth coupling for a floating foreground separation
-          pos.x += centeredDepth * uParallax.x * 0.12;
-          pos.y += centeredDepth * uParallax.y * 0.08;
+          // OPTIMIZATION 3: Controlled depth-dependent parallax drift to prevent 'finger painting'
+          pos.x += centeredDepth * uParallax.x * 0.045;
+          pos.y += centeredDepth * uParallax.y * 0.03;
 
           gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
         }
@@ -131,7 +149,8 @@ function SpatialPhoto({
 
   return (
     <mesh ref={meshRef} material={material}>
-      <planeGeometry args={[planeWidth, planeHeight, 300, 300]} />
+      {/* OPTIMIZATION 4: Higher vertex counts (500x500) for smoother physical deformation transitions */}
+      <planeGeometry args={[planeWidth, planeHeight, 500, 500]} />
     </mesh>
   );
 }
