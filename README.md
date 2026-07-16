@@ -12,8 +12,7 @@ This project was built to explore the boundaries of spatial depth in a web brows
 
 ## Video Demo
 
-
-https://github.com/user-attachments/assets/your-demo-video-id-here
+https://github.com/user-attachments/assets/ab1ddb6d-caa4-4abf-9025-ed51d89608e1 
 
 ---
 
