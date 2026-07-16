@@ -105,8 +105,8 @@ export default function Showcase({ darkMode }: ShowcaseProps) {
     {
       id: 6,
       subtitle: "STEP SEVEN",
-      title: "Synthesizing Intimate Realism",
-      description: "Put the AI up against close-quarters realism. Study the isolation of the subject from surrounding domestic details, locking clean, sharp outlines with zero spatial bleeding.",
+      title: "2D MOTION",
+      description: "Utilizing apple depth pro to simulate 3D spatial scenes.",
       ctaText: "Review edge occlusion",
       imageSrc: "/tinubu.jpg",
       depthSrc: "/tinubu.webp",
