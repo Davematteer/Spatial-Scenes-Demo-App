@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileImage, Image as ImageIcon, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { Upload, FileImage, Loader2 } from "lucide-react";
 
 const loopingWords = ["Depth Map", "3D Scene", "Parallax","Shift"];
 

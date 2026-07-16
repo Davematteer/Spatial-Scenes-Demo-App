@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Maximize2, Minimize2, ArrowRight, ArrowLeft } from "lucide-react";
 import SpatialScene from "./ParallaxEngine/SpatialScene";

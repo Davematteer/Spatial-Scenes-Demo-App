@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router";
-import { ShieldCheck, Sun, Moon } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 
 export function RootLayout() {
   const [darkMode, setDarkMode] = useState(false);
