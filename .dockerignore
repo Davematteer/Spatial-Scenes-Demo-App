@@ -1,0 +1,9 @@
+node_modules
+.npm
+dist
+build
+.turbo
+.git
+
+.env
+.env.local
