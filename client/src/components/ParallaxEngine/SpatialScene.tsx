@@ -64,21 +64,23 @@ function SpatialPhoto({
     const inputX = tiltRef.current.isSupported ? tiltRef.current.x : pointer.x;
     const inputY = tiltRef.current.isSupported ? tiltRef.current.y : pointer.y;
 
-    // TUNING UPGRADED: Tighter, subtle camera constraints to keep movement within safe boundaries
-    const targetX = inputX * 0.12;
-    const targetY = inputY * 0.08;
+    // SENSITIVITY UPGRADE: Slightly wider bounds so slight motions feel punchy and clear
+    const targetX = inputX * 0.18;
+    const targetY = inputY * 0.12;
 
-    // Smoothly drift the camera
-    camera.position.x += (targetX - camera.position.x) * 0.05;
-    camera.position.y += (-targetY - camera.position.y) * 0.05;
+    // SENSITIVITY UPGRADE: Increased tracking speed (from 0.05 to 0.08) to eliminate perceived lag
+    const smoothFactor = 0.08;
+
+    camera.position.x += (targetX - camera.position.x) * smoothFactor;
+    camera.position.y += (-targetY - camera.position.y) * smoothFactor;
     camera.lookAt(0, 0, 0);
 
     // Smoothly update the uParallax uniform to match the input's inertia
     if (meshRef.current) {
       const material = meshRef.current.material as THREE.ShaderMaterial;
       if (material.uniforms && material.uniforms.uParallax) {
-        material.uniforms.uParallax.value.x += (inputX - material.uniforms.uParallax.value.x) * 0.05;
-        material.uniforms.uParallax.value.y += (inputY - material.uniforms.uParallax.value.y) * 0.05;
+        material.uniforms.uParallax.value.x += (inputX - material.uniforms.uParallax.value.x) * smoothFactor;
+        material.uniforms.uParallax.value.y += (inputY - material.uniforms.uParallax.value.y) * smoothFactor;
       }
     }
   });
@@ -88,7 +90,7 @@ function SpatialPhoto({
       uniforms: {
         uImage: { value: imageTexture },
         uDepth: { value: depthTexture },
-        uDisplacement: { value: 0.4 }, // Reduced displacement strength (tuned down from 0.65)
+        uDisplacement: { value: 0.4 }, // Balanced displacement
         uParallax: { value: new THREE.Vector2(0, 0) },
       },
       vertexShader: `
@@ -102,7 +104,7 @@ function SpatialPhoto({
           vUv = uv;
           vec3 pos = position;
 
-          // OPTIMIZATION 1: 5-Tap Box Blur on the depth texture directly in the shader
+          // 5-Tap Box Blur on the depth texture directly in the shader
           float depth = (
             texture2D(uDepth, uv + vec2(-0.001, 0.0)).r +
             texture2D(uDepth, uv + vec2( 0.001, 0.0)).r +
@@ -117,7 +119,7 @@ function SpatialPhoto({
 
           float centeredDepth = depth - 0.5;
 
-          // OPTIMIZATION 2: Edge Attenuation to kill tearing along sharp depth transitions
+          // Edge Attenuation to kill tearing along sharp depth transitions
           float d1 = texture2D(uDepth, uv).r;
           float d2 = texture2D(uDepth, uv + vec2(0.002, 0.0)).r;
           float edge = abs(d1 - d2);
@@ -129,7 +131,7 @@ function SpatialPhoto({
           // Apply physical 3D displacement
           pos.z += centeredDepth * uDisplacement;
 
-          // OPTIMIZATION 3: Controlled depth-dependent parallax drift to prevent 'finger painting'
+          // Depth-dependent parallax drift
           pos.x += centeredDepth * uParallax.x * 0.045;
           pos.y += centeredDepth * uParallax.y * 0.03;
 
@@ -149,7 +151,6 @@ function SpatialPhoto({
 
   return (
     <mesh ref={meshRef} material={material}>
-      {/* OPTIMIZATION 4: Higher vertex counts (500x500) for smoother physical deformation transitions */}
       <planeGeometry args={[planeWidth, planeHeight, 500, 500]} />
     </mesh>
   );
@@ -201,8 +202,9 @@ export default function SpatialScene({
       let deltaBeta = beta - (initialOrientation.current.beta ?? 60);
       let deltaGamma = gamma - (initialOrientation.current.gamma ?? 0);
 
-      // Clamp target rotation range to a physical comfortable swing (max 20 degrees)
-      const maxAngle = 20;
+      // SENSITIVITY UPGRADE: Decreased from 20 to 8 degrees.
+      // The user now only needs to tilt their device 8 degrees to hit the max physical displacement.
+      const maxAngle = 8;
       deltaBeta = Math.max(-maxAngle, Math.min(maxAngle, deltaBeta));
       deltaGamma = Math.max(-maxAngle, Math.min(maxAngle, deltaGamma));
 
