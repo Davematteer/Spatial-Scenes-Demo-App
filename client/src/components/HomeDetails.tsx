@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Check, Loader2, Maximize2, Minimize2, Send } from "lucide-react";
+import { ArrowLeft, Check, Download, Loader2, Maximize2, Minimize2, Send } from "lucide-react";
 import SpatialScene from "./ParallaxEngine/SpatialScene";
 import { createPost, POSTS_QUERY_KEY } from "@/lib/postsApi";
 
@@ -42,11 +42,12 @@ export default function HomeDetails({ imageSrc, depthSrc, fileName, onBack, dark
     fitToImage?: boolean;
   } | null>(null);
   const openUploadFullscreen = () => setFullscreenData({ imageSrc, depthSrc, fitToImage: true });
+  const fileStem = fileName.replace(/\.[^.]+$/, "");
 
   const queryClient = useQueryClient();
   const postMutation = useMutation({
     mutationFn: () =>
-      createPost({ imageUrl: imageSrc, depthUrl: depthSrc, title: fileName.replace(/\.[^.]+$/, "") }),
+      createPost({ imageUrl: imageSrc, depthUrl: depthSrc, title: fileStem }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: POSTS_QUERY_KEY });
       toast.success("Posted to User Uploads", {
@@ -94,7 +95,7 @@ export default function HomeDetails({ imageSrc, depthSrc, fileName, onBack, dark
         className="space-y-6 w-full text-left"
       >
         {/* HEADER NAV */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <button 
             onClick={onBack} 
             className="inline-flex items-center gap-2 text-xs font-semibold tracking-wider uppercase opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
@@ -102,7 +103,20 @@ export default function HomeDetails({ imageSrc, depthSrc, fileName, onBack, dark
             <ArrowLeft className="w-3.5 h-3.5" /> Upload Another Image
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={depthSrc}
+            download={`${fileStem || "image"}-depth.png`}
+            title="Download the grayscale depth map (white = near)"
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+              darkMode
+                ? "bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800"
+                : "bg-white border-zinc-200 text-zinc-700 hover:text-black hover:bg-zinc-50"
+            }`}
+          >
+            <Download className="w-3.5 h-3.5" /> Depth Map
+          </a>
+
           <button
             onClick={() => postMutation.mutate()}
             disabled={postMutation.isPending || isPosted}

@@ -32,6 +32,11 @@ interface SpatialSceneProps {
  */
 const FIT_VISIBLE_FRACTION = 0.95;
 
+/** Fit-mode canvas caps. Fullscreen matches the footprint of the built-in showcase scenes. */
+const FIT_INLINE_MAX_HEIGHT = "70vh";
+const FIT_FULLSCREEN_MAX_HEIGHT = "65vh";
+const FIT_FULLSCREEN_MAX_WIDTH = "55vw";
+
 /**
  * Depth value that stays on the image plane; farther pixels sink back, nearer ones come forward.
  * Centered (0.5) framing makes far edges shrink away from the frame, which the default framing
@@ -293,7 +298,7 @@ export default function SpatialScene({
 
   // Wait for the image's dimensions so the canvas never renders at the wrong shape.
   if (fitToImage && imageAspect === null) {
-    return <div className="w-full" style={{ height: isFullscreen ? "80vh" : "70vh" }} />;
+    return <div className="w-full" style={{ height: isFullscreen ? FIT_FULLSCREEN_MAX_HEIGHT : FIT_INLINE_MAX_HEIGHT }} />;
   }
 
   // In fit mode the canvas takes the image's shape, capped to the available width and height.
@@ -301,7 +306,9 @@ export default function SpatialScene({
     fitToImage && imageAspect
       ? {
           aspectRatio: imageAspect,
-          width: `min(100%, calc(${isFullscreen ? "80vh" : "70vh"} * ${imageAspect}))`,
+          width: isFullscreen
+            ? `min(100%, ${FIT_FULLSCREEN_MAX_WIDTH}, calc(${FIT_FULLSCREEN_MAX_HEIGHT} * ${imageAspect}))`
+            : `min(100%, calc(${FIT_INLINE_MAX_HEIGHT} * ${imageAspect}))`,
         }
       : undefined;
 
