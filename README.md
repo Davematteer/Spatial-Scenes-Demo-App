@@ -1,34 +1,48 @@
-# spatial_scenes 
+# Spatial Scenes
 
-An interactive web showcase that projects ordinary 2D images into dynamic "3D spatial" scenes-similar to the fluid, high-end visual experiences seen on Apple's spatial scenes feature.
+An interactive web demo that turns an ordinary 2D photo into a 3D parallax scene, similar to the spatial scenes feature on Apple devices.
 
-## About the Project
-
-This project was built to explore the boundaries of spatial depth in a web browser. By mapping 2D textures onto dynamically deformed 3D meshes, it creates a living, interactive parallax depth field that reacts directly to your cursor.
-
-> **Developer Note:** Please forgive any rough edges or bugs! I whipped this entire prototype up in a single day with the help of Gemini to quickly prove and bring this concept to life.
-
----
+Upload an image and the app estimates a depth map with Depth Anything V2. It then displaces a high-resolution Three.js mesh with that map, so the scene shifts in depth as you move your cursor or tilt your phone.
 
 ## Video Demo
 
-https://github.com/user-attachments/assets/ab1ddb6d-caa4-4abf-9025-ed51d89608e1 
+https://github.com/user-attachments/assets/ab1ddb6d-caa4-4abf-9025-ed51d89608e1
 
----
+## How depth estimation works
 
-## The Stack
+The logic lives in `client/src/lib/depthService.ts` and tries three options in order:
 
-This prototype is built on a modern, ultra-fast frontend stack and is deployed as a static site:
+1. [`depth-anything/Depth-Anything-V2`](https://huggingface.co/spaces/depth-anything/Depth-Anything-V2), the official Hugging Face Space (GPU, a few seconds)
+2. [`Upsampler/depth-anything-v2`](https://huggingface.co/spaces/Upsampler/depth-anything-v2), a mirror with the same API
+3. In-browser inference with [`onnx-community/depth-anything-v2-small`](https://huggingface.co/onnx-community/depth-anything-v2-small) via [Transformers.js](https://huggingface.co/docs/transformers.js), in a Web Worker (`depthWorker.ts`)
 
-* **Frontend Library:** [React](https://react.dev) for the user interface components
-* **3D Engine:** [Three.js](https://threejs.org) (via React Three Fiber) to project the spatial meshes and compute real-time pointer interactions
-* **Language & Runtime:** [TypeScript](https://www.typescriptlang.org/) for end-to-end safety, built with [Bun](https://bun.sh) for lightning-fast package management
-* **Deployment:** Hosted and continuously deployed on [Cloudflare Pages](https://pages.cloudflare.com/) for instant, global delivery
+Depth Anything V2 isn't served by any Hugging Face Inference Provider, so the Spaces are called through their Gradio HTTP API, straight from the browser. No API key or backend is needed. Each visitor uses their own anonymous ZeroGPU quota, which runs out after a handful of images per day. Once both Spaces fail, the app goes straight to in-browser inference for the next hour.
 
----
+The in-browser model is quantized to keep the one-time download small, and the browser caches it:
 
-## Attributions & Credits
+| Backend | Weights | Download | Mean depth error vs fp32 |
+| --- | --- | --- | --- |
+| WebGPU with `shader-f16` | q4f16 | 19 MB | ~2% |
+| WebGPU without f16 | q4 | 27 MB | ~2% |
+| WASM (CPU) | uint8 | 27 MB | ~1% |
 
-The magic behind the depth rendering in this project is powered by **Apple's Depth Pro** model. Deep appreciation goes to the researchers and developers who open-sourced this incredible machine learning model.
+If all three options fail, the user sees an error toast. Images larger than 2048px are downscaled first.
 
-* **Depth Pro Model:** [Apple ML Depth Pro on GitHub](https://github.com/apple/ml-depth-pro)
+## Stack
+
+- [React](https://react.dev) + [Vite](https://vite.dev) + [Tailwind CSS](https://tailwindcss.com)
+- [Three.js](https://threejs.org) via React Three Fiber for the displaced mesh and parallax shader
+- [Bun](https://bun.sh) workspaces with Turborepo
+- Deployed on Cloudflare Workers (static assets)
+
+## Development
+
+```sh
+bun install
+bun run dev:client
+```
+
+## Credits
+
+- [Depth Anything V2](https://github.com/DepthAnything/Depth-Anything-V2) by Lihe Yang et al.
+- The example depth maps in `client/public` were made with [Apple Depth Pro](https://github.com/apple/ml-depth-pro).

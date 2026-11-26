@@ -2,6 +2,17 @@ import React, { Suspense, useMemo, useRef, useEffect, useState } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
+// iOS Safari exposes a non-standard permission gate for motion sensors.
+type OrientationEventWithPermission = typeof DeviceOrientationEvent & {
+  requestPermission?: () => Promise<"granted" | "denied">;
+};
+
+function getOrientationEvent(): OrientationEventWithPermission | undefined {
+  return typeof window !== "undefined" && "DeviceOrientationEvent" in window
+    ? (window.DeviceOrientationEvent as OrientationEventWithPermission)
+    : undefined;
+}
+
 interface SpatialSceneProps {
   imageSrc: string;
   depthSrc: string;
@@ -20,7 +31,6 @@ function SpatialPhoto({
   const imageTexture = useLoader(THREE.TextureLoader, imageSrc);
   const depthTexture = useLoader(THREE.TextureLoader, depthSrc);
 
-  // Safely cast image to HTMLImageElement to fix compilation
   const imgElement = imageTexture.image as HTMLImageElement;
   const imageAspect = (imgElement?.width || 1) / (imgElement?.height || 1);
 
@@ -64,11 +74,11 @@ function SpatialPhoto({
     const inputX = tiltRef.current.isSupported ? tiltRef.current.x : pointer.x;
     const inputY = tiltRef.current.isSupported ? tiltRef.current.y : pointer.y;
 
-    // SENSITIVITY UPGRADE: Slightly wider bounds so slight motions feel punchy and clear
+    // Wider bounds so small motions still read clearly
     const targetX = inputX * 0.18;
     const targetY = inputY * 0.12;
 
-    // SENSITIVITY UPGRADE: Increased tracking speed (from 0.05 to 0.08) to eliminate perceived lag
+    // Tracking speed; higher feels more responsive
     const smoothFactor = 0.08;
 
     camera.position.x += (targetX - camera.position.x) * smoothFactor;
@@ -170,11 +180,7 @@ export default function SpatialScene({
 
   // 1. Detect if this is an iOS device requiring explicit motion permission
   useEffect(() => {
-    if (
-      typeof window !== "undefined" &&
-      typeof (window as any).DeviceOrientationEvent !== "undefined" &&
-      typeof (window as any).DeviceOrientationEvent.requestPermission === "function"
-    ) {
+    if (typeof getOrientationEvent()?.requestPermission === "function") {
       setRequiresPermission(true);
     } else {
       // Android / standard web environments don't require permission gates
@@ -202,8 +208,7 @@ export default function SpatialScene({
       let deltaBeta = beta - (initialOrientation.current.beta ?? 60);
       let deltaGamma = gamma - (initialOrientation.current.gamma ?? 0);
 
-      // SENSITIVITY UPGRADE: Decreased from 20 to 8 degrees.
-      // The user now only needs to tilt their device 8 degrees to hit the max physical displacement.
+      // Tilting 8 degrees reaches max displacement.
       const maxAngle = 8;
       deltaBeta = Math.max(-maxAngle, Math.min(maxAngle, deltaBeta));
       deltaGamma = Math.max(-maxAngle, Math.min(maxAngle, deltaGamma));
@@ -221,10 +226,10 @@ export default function SpatialScene({
 
   // 3. User-gesture handler to unlock iOS gyroscope
   const handleRequestPermission = async () => {
-    const requestPermissionFn = (window as any).DeviceOrientationEvent?.requestPermission;
-    if (typeof requestPermissionFn === "function") {
+    const orientationEvent = getOrientationEvent();
+    if (typeof orientationEvent?.requestPermission === "function") {
       try {
-        const status = await requestPermissionFn();
+        const status = await orientationEvent.requestPermission();
         if (status === "granted") {
           setPermissionGranted(true);
           setRequiresPermission(false);
@@ -245,7 +250,7 @@ export default function SpatialScene({
       {requiresPermission && !permissionGranted && (
         <div className="absolute inset-0 bg-black/60 z-10 flex flex-col items-center justify-center gap-3 p-4 text-center">
           <p className="text-white text-sm font-medium">
-            Grant motion permission to unlock 3D device-tilting!
+            Allow motion access to tilt the scene with your device.
           </p>
           <button
             onClick={handleRequestPermission}

@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
 
-  # 2. Backend Pipeline Service (Hono + Bun Runtime)
+  # Backend (Hono + Bun)
   backend:
     build:
       context: .
@@ -11,18 +9,10 @@ services:
     container_name: hono_backend
     expose:
       - "3000"
-    environment:
-      DB_HOST: db
-      DB_USER: root
-      DB_PASSWORD: ${DB_ROOT_PASSWORD}
-      DB_NAME: ccmb_transactions
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - app_network
 
-  # 3. Frontend Production Distribution (Nginx)
+  # Frontend (static build served by Nginx)
   frontend:
     build:
       context: .
@@ -40,6 +30,3 @@ services:
 
 networks:
   app_network:
-
-volumes:
-  db_data: 

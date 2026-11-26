@@ -1,32 +1,72 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useOutletContext } from "react-router";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import HomeLanding from "./HomeLanding";
 import HomeDetails from "./HomeDetails";
 import Showcase from "./Showcase";
+import { estimateDepth, type DepthResult, type DepthStatus } from "@/lib/depthService";
 
 interface LayoutContextType {
   darkMode: boolean;
 }
 
-function Home() {
-  const [story, setStory] = useState<boolean | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  
-  const { darkMode } = useOutletContext<LayoutContextType>();
+interface Scene extends DepthResult {
+  fileName: string;
+}
 
-  const [imageAsset] = useState("/weeknd.jpg"); 
-  const [depthAsset] = useState("/weekndDepth.jpg");
+function describeStatus(status: DepthStatus | null): { title: string; detail: string } {
+  switch (status?.stage) {
+    case "local-download": {
+      const mb = (bytes: number) => (bytes / 1e6).toFixed(1);
+      return {
+        title: "Downloading the depth model to your browser...",
+        detail: `${mb(status.loaded)} / ${mb(status.total)} MB, only needed once`,
+      };
+    }
+    case "local-inference":
+      return { title: "Estimating depth on your device...", detail: "This can take a few seconds" };
+    default:
+      return { title: "Estimating depth with Depth Anything V2...", detail: "Usually a few seconds" };
+  }
+}
+
+function Home() {
+  const { darkMode } = useOutletContext<LayoutContextType>();
+  const [scene, setScene] = useState<Scene | null>(null);
+  const [status, setStatus] = useState<DepthStatus | null>(null);
+
+  const depthMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setStatus(null);
+      return { ...(await estimateDepth(file, setStatus)), fileName: file.name };
+    },
+    onSuccess: setScene,
+    onError: () => {
+      toast.error("Sorry, we can't process images right now", {
+        description: "Our depth provider is having a problem. Please try again in a few minutes.",
+      });
+    },
+  });
+  const isProcessing = depthMutation.isPending;
+  const statusText = describeStatus(status);
+
+  // Release the object URLs when a scene is replaced or the page unmounts.
+  useEffect(() => {
+    if (!scene) return;
+    return () => {
+      URL.revokeObjectURL(scene.imageUrl);
+      URL.revokeObjectURL(scene.depthUrl);
+    };
+  }, [scene]);
 
   const handleImageUpload = (file: File) => {
-    setIsProcessing(true);
-    setErrorMessage(null);
-
-    setTimeout(() => {
-      setIsProcessing(false);
-      setStory(true); 
-    }, 2000);
+    if (!file.type.startsWith("image/")) {
+      toast.error("That file is not an image", { description: "Please upload a PNG, JPG, or WEBP." });
+      return;
+    }
+    depthMutation.mutate(file);
   };
 
   // Dynamic shadow classes based on the active theme
@@ -48,16 +88,11 @@ function Home() {
 
       <div className="w-full max-w-3xl px-8 py-12 z-10">
         <AnimatePresence mode="wait">
-          {!story && !isProcessing ? (
+          {!scene && !isProcessing ? (
            <>
-            <HomeLanding 
-              handleImageUpload={handleImageUpload}
-              isProcessing={isProcessing}
-              errorMessage={errorMessage}
-              darkMode={darkMode}
-            />
+            <HomeLanding handleImageUpload={handleImageUpload} darkMode={darkMode} />
             
-            {/* ─── SHOWCASE WRAPPER WITH BOLD VINYL MARGIN STICKERS ─── */}
+            {/* Showcase with margin stickers */}
             <div className="relative w-full mt-16">
               
               {/* STICKER 1: Left Middle (Warning Yellow & Black) */}
@@ -69,7 +104,7 @@ function Home() {
                 className="hidden lg:flex absolute -left-48 top-1/4 flex-col items-center select-none cursor-grab active:cursor-grabbing pointer-events-auto z-30"
               >
                 <div className={`bg-[#FFCC00] text-zinc-950 font-black tracking-widest text-xs md:text-sm px-5 py-3 rounded-md border-2 border-zinc-950 transition-shadow duration-300 ${shadowClass}`}>
-                  DEPTH_PRO // v1.0
+                  DEPTH_ANYTHING // V2
                 </div>
               </motion.div>
 
@@ -82,7 +117,7 @@ function Home() {
                 className="hidden lg:flex absolute -left-40 bottom-12 flex-col items-center select-none cursor-grab active:cursor-grabbing pointer-events-auto z-30"
               >
                 <div className={`bg-white text-zinc-950 font-black tracking-widest text-xs px-4 py-2.5 rounded-md border-2 border-zinc-950 transition-shadow duration-300 ${shadowClass}`}>
-                  METRIC_ESTIMATION
+                  RELATIVE_DEPTH
                 </div>
               </motion.div>
 
@@ -108,7 +143,7 @@ function Home() {
                 className="hidden lg:flex absolute -right-44 bottom-24 flex-col items-center select-none cursor-grab active:cursor-grabbing pointer-events-auto z-30"
               >
                 <div className={`bg-[#a855f7] text-white font-black tracking-widest text-xs px-4.5 py-2.5 rounded-md border-2 border-zinc-950 transition-shadow duration-300 ${shadowClass}`}>
-                  16-BIT_EXPORT
+                  ZERO_SHOT
                 </div>
               </motion.div>
 
@@ -118,15 +153,19 @@ function Home() {
           ) : isProcessing ? (
             <div className="flex flex-col items-center justify-center gap-4 py-20">
               <span className={`w-2 h-2 rounded-full animate-bounce delay-75 ${darkMode ? "bg-white" : "bg-black"}`} />
-              <p className="text-xs text-zinc-500 font-medium">Bootstrapping WebGL Canvas...</p>
+              <p className="text-xs text-zinc-500 font-medium">{statusText.title}</p>
+              <p className="text-[11px] text-zinc-400">{statusText.detail}</p>
             </div>
           ) : (
-            <HomeDetails 
-              imageSrc={imageAsset}
-              depthSrc={depthAsset}
-              setStory={setStory}
-              darkMode={darkMode}
-            />
+            scene && (
+              <HomeDetails
+                imageSrc={scene.imageUrl}
+                depthSrc={scene.depthUrl}
+                fileName={scene.fileName}
+                onBack={() => setScene(null)}
+                darkMode={darkMode}
+              />
+            )
           )}
         </AnimatePresence>
       </div>

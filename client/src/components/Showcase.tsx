@@ -152,7 +152,7 @@ export default function Showcase({ darkMode }: ShowcaseProps) {
 
   return (
     <section ref={showcaseRef} className="w-full max-w-7xl xl:max-w-8xl 2xl:max-w-[1512px] mx-auto px-6 md:px-12 xl:px-16 pb-24 scroll-mt-24">
-      {/* ─── SHOWCASE LINE DIVIDER ─── */}
+      {/* Divider */}
       <div className="flex items-center my-16">
         <div className={`flex-grow h-[1px] ${darkMode ? "bg-zinc-800" : "bg-zinc-200"}`}></div>
         <span className="px-8 text-xs uppercase tracking-[0.3em] text-zinc-400 font-bold font-mono">
@@ -267,7 +267,7 @@ export default function Showcase({ darkMode }: ShowcaseProps) {
         </AnimatePresence>
       </div>
 
-      {/* ─── STREETWEAR STYLED PAGINATION CONTROLS ─── */}
+      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-6 mt-28">
           <button
@@ -354,7 +354,7 @@ export default function Showcase({ darkMode }: ShowcaseProps) {
 
               {/* Dynamic instruction badge */}
               <div className="hidden md:block absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none bg-black/85 backdrop-blur-lg px-4 py-2.5 rounded-xl text-xs text-white/90 border border-white/10 font-sans shadow-xl text-center">
-                Move your cursor to drift the dimensional field • Press <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] border border-zinc-700">ESC</kbd> to exit
+                Move your cursor to drift the scene. Press <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] border border-zinc-700">ESC</kbd> to exit
               </div>
             </div>
           </motion.div>

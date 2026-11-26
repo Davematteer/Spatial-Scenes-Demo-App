@@ -1,5 +1,5 @@
 # --- Stage 1: Base Build Layer (Monorepo Context) ---
-# 🛠️ Changed alpine to slim to fix network/DNS hangs
+# slim instead of alpine avoids network/DNS hangs during install
 FROM oven/bun:1.2-slim AS builder
 WORKDIR /app
 
@@ -26,7 +26,6 @@ EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 
 # --- Stage 3: Production Backend Runner (Bun Runtime) ---
-# 🛠️ Changed alpine to slim here as well
 FROM oven/bun:1.2-slim AS backend-runtime
 WORKDIR /app
 

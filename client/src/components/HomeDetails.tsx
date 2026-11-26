@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import SpatialScene from "./ParallaxEngine/SpatialScene";
@@ -6,14 +6,15 @@ import SpatialScene from "./ParallaxEngine/SpatialScene";
 interface HomeDetailsProps {
   imageSrc: string;
   depthSrc: string;
-  setStory: (story: any | null) => void;
+  fileName: string;
+  onBack: () => void;
   darkMode: boolean;
 }
 
 interface ShowcaseItem {
   id: number;
   imageSrc: string;
-  depthSrc: string; // Restored depth paths for Three.js compilation
+  depthSrc: string;
   title: string;
 }
 
@@ -29,7 +30,7 @@ const showcaseItems: ShowcaseItem[] = [
 
 const duplicatedItems = [...showcaseItems, ...showcaseItems];
 
-export default function HomeDetails({ imageSrc, depthSrc, setStory, darkMode }: HomeDetailsProps) {
+export default function HomeDetails({ imageSrc, depthSrc, fileName, onBack, darkMode }: HomeDetailsProps) {
   // Track specific image/depth state for the active fullscreen view (null when closed)
   const [fullscreenData, setFullscreenData] = useState<{ imageSrc: string; depthSrc: string } | null>(null);
   const isFullscreen = fullscreenData !== null;
@@ -70,7 +71,7 @@ export default function HomeDetails({ imageSrc, depthSrc, setStory, darkMode }: 
         {/* HEADER NAV */}
         <div className="flex items-center justify-between">
           <button 
-            onClick={() => setStory(null)} 
+            onClick={onBack} 
             className="inline-flex items-center gap-2 text-xs font-semibold tracking-wider uppercase opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Upload Another Image
@@ -107,19 +108,19 @@ export default function HomeDetails({ imageSrc, depthSrc, setStory, darkMode }: 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
           <div className="space-y-1">
             <h4 className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Input File</h4>
-            <p className={`text-sm font-mono tracking-tight ${darkMode ? "text-zinc-200" : "text-zinc-800"}`}>
-              original.jpg
+            <p className={`text-sm font-mono tracking-tight truncate ${darkMode ? "text-zinc-200" : "text-zinc-800"}`}>
+              {fileName}
             </p>
           </div>
           <div className="space-y-1">
-            <h4 className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Target Matrix</h4>
+            <h4 className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Depth Map</h4>
             <p className={`text-sm font-mono tracking-tight ${darkMode ? "text-zinc-200" : "text-zinc-800"}`}>
-              depth.png (16-bit map)
+              Depth Anything V2 (grayscale, white = near)
             </p>
           </div>
         </div>
 
-        {/* ─── COMPACT INFINITE AUTO-PLAY CAROUSEL ─── */}
+        {/* Auto-scrolling example carousel */}
         <div className="pt-4 space-y-3">
           <h4 className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">
             Reference Database Carousel (Click to preview)
@@ -219,7 +220,7 @@ export default function HomeDetails({ imageSrc, depthSrc, setStory, darkMode }: 
 
               {/* Toast info on the canvas overlay */}
               <div className=" absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none bg-black/85 backdrop-blur-lg px-4 py-2.5 rounded-xl text-xs text-white/90 border border-white/10 font-sans shadow-xl text-center">
-                Move your cursor to drift the dimensional field • Press <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] border border-zinc-700">ESC</kbd> to exit
+                Move your cursor to drift the scene. Press <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] border border-zinc-700">ESC</kbd> to exit
               </div>
             </div>
           </motion.div>

@@ -1,10 +1,9 @@
 {
-  "name": "transactionalPortal",
+  "name": "spatial-scenes",
   "version": "0.5.1",
-  "description": "A monorepo template built with Bun, Hono, Vite, and React",
-  "author": "Steve Simkins",
+  "description": "Turn a single photo into an interactive 3D parallax scene",
+  "author": "Dave Matteer",
   "license": "MIT",
-  "homepage": "https://github.com/stevedylandev/bhvr",
   "packageManager": "bun@1.2.4",
   "workspaces": [
     "./server",
@@ -24,12 +23,11 @@
     "postinstall": "turbo build --filter=shared"
   },
   "keywords": [
-    "bun",
-    "hono",
+    "three.js",
     "react",
-    "vite",
-    "monorepo",
-    "turbo"
+    "depth-estimation",
+    "parallax",
+    "vite"
   ],
   "devDependencies": {
     "bun-types": "latest",

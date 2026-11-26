@@ -1,22 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Upload, FileImage, Loader2 } from "lucide-react";
+import { Upload, FileImage } from "lucide-react";
 
 const loopingWords = ["Depth Map", "3D Scene", "Parallax","Shift"];
 
 interface HomeLandingProps {
   handleImageUpload: (file: File) => void;
-  isProcessing: boolean;
-  errorMessage: string | null;
   darkMode: boolean;
 }
 
-export default function HomeLanding({ 
-  handleImageUpload, 
-  isProcessing, 
-  errorMessage, 
-  darkMode 
-}: HomeLandingProps) {
+export default function HomeLanding({ handleImageUpload, darkMode }: HomeLandingProps) {
   const [wordIndex, setWordIndex] = useState(0);
   const [dragActive, setDragActive] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
@@ -79,10 +72,7 @@ export default function HomeLanding({
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="text-center space-y-8 relative flex flex-col items-center min-h-[65vh] justify-center px-4 py-8"
     >
-      {/* 
-        STICKERS GLOBAL CONTAINER 
-        Updated tags contextually matched to Depth Pro & WebGL rendering specifications.
-      */}
+      {/* Floating feature stickers */}
       <div className="absolute inset-0 pointer-events-none select-none z-20">
         
         {/* STICKER 1: Top-Left */}
@@ -94,7 +84,7 @@ export default function HomeLanding({
         >
           <svg className="w-2.5 h-2.5 lg:w-3 h-3 text-blue-500 transform -rotate-45 fill-current" viewBox="0 0 24 24"><path d="M21 3L3 10.53v.98l6.84 2.81L12.65 21h.98L21 3z"/></svg>
           <span className="text-[10px] lg:text-[11px] font-medium tracking-wide px-2 py-0.5 lg:py-1 rounded bg-blue-500 text-white shadow-md font-sans whitespace-nowrap">
-            Depth Pro AI v1.0
+            Depth Anything V2
           </span>
         </motion.div>
 
@@ -107,7 +97,7 @@ export default function HomeLanding({
         >
           <svg className="w-2.5 h-2.5 lg:w-3 h-3 text-emerald-500 transform rotate-90 fill-current" viewBox="0 0 24 24"><path d="M21 3L3 10.53v.98l6.84 2.81L12.65 21h.98L21 3z"/></svg>
           <span className="text-[10px] lg:text-[11px] font-medium tracking-wide px-2 py-0.5 lg:py-1 rounded bg-emerald-500 text-white shadow-md font-sans whitespace-nowrap">
-            Metric Estimation
+            Relative Depth
           </span>
         </motion.div>
 
@@ -133,7 +123,7 @@ export default function HomeLanding({
         >
           <svg className="w-2.5 h-2.5 lg:w-3 h-3 text-amber-500 transform -rotate-90 fill-current" viewBox="0 0 24 24"><path d="M21 3L3 10.53v.98l6.84 2.81L12.65 21h.98L21 3z"/></svg>
           <span className="text-[10px] lg:text-[11px] font-medium tracking-wide px-2 py-0.5 lg:py-1 rounded bg-amber-500 text-white shadow-md font-sans whitespace-nowrap">
-            16-Bit PNG Export
+            Zero-Shot, Any Image
           </span>
         </motion.div>
       </div>
@@ -169,7 +159,7 @@ export default function HomeLanding({
           </span>
 
           {titleSentencePart2.map((word, index) => {
-            const isSingle = word.trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "") === "Single";
+            const isSingle = word.replace(/\W/g, "") === "Single";
             return (
               <span 
                 key={`p2-${index}`} 
@@ -221,15 +211,7 @@ export default function HomeLanding({
                 : "border-zinc-200 hover:border-zinc-400 bg-zinc-50/50 hover:bg-zinc-50/90"
             }`}
         >
-          {isProcessing ? (
-            <div className="flex flex-col items-center space-y-3">
-              <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-              <p className={`text-sm font-medium ${darkMode ? "text-zinc-300" : "text-zinc-700"}`}>
-                Analyzing depths with Depth Pro AI...
-              </p>
-              <p className="text-xs text-zinc-500">Letting it cook on the CPU (approx. 30-60s)</p>
-            </div>
-          ) : selectedFileName ? (
+          {selectedFileName ? (
             <div className="flex flex-col items-center space-y-3">
               <FileImage className="w-10 h-10 text-emerald-500" />
               <div className="text-center">
@@ -254,10 +236,6 @@ export default function HomeLanding({
           )}
         </div>
       </div>
-
-      {errorMessage && (
-        <p className="text-xs text-red-500 font-medium tracking-wide pt-2 animate-pulse">{errorMessage}</p>
-      )}
     </motion.div>
   );
 }
