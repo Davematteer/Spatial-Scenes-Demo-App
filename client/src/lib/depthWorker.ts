@@ -1,22 +1,33 @@
 /// <reference lib="webworker" />
 /**
- * Runs Depth Anything V2 Small in the browser, off the main thread.
+ * Runs Depth Anything V2 Small in the browser, off the main thread, on the CPU (WASM).
  *
- * Quantized weights keep the one-time download small (the browser caches it):
- *   WebGPU + shader-f16  -> q4f16  (19 MB)
- *   WebGPU without f16   -> q4     (27 MB)
- *   WASM / CPU           -> uint8  (27 MB)
- * Against the 99 MB fp32 model these differ by roughly 1-2% mean absolute depth error,
- * which the parallax shader's blur and smoothing hide.
+ * The weights are 4-bit quantized (q4f16, 19 MB vs 99 MB for fp32, ~2% mean depth
+ * error, which the parallax shader's blur and smoothing hide). The weights and the
+ * ONNX Runtime binary are served from this site's own origin (prepared at build time
+ * by scripts/fetch-model.ts), so nothing depends on huggingface.co or a CDN at runtime.
+ * The browser caches them after the first download.
  */
 import {
+  env,
   pipeline,
   RawImage,
   type DepthEstimationPipeline,
   type ProgressInfo,
 } from "@huggingface/transformers";
 
+env.allowRemoteModels = false;
+env.allowLocalModels = true;
+env.localModelPath = "/models/";
+if (env.backends.onnx.wasm) {
+  env.backends.onnx.wasm.wasmPaths = {
+    wasm: "/ort/ort-wasm-simd-threaded.wasm",
+    mjs: "/ort/ort-wasm-simd-threaded.mjs",
+  };
+}
+
 const MODEL_ID = "onnx-community/depth-anything-v2-small";
+const DTYPE = "q4f16";
 
 export type WorkerRequest = { id: number; image: Blob };
 
@@ -25,34 +36,15 @@ export type WorkerResponse =
   | { id: number; type: "result"; depth: Blob; device: string }
   | { id: number; type: "error"; message: string };
 
-type Device = "webgpu" | "wasm";
-type DType = "q4f16" | "q4" | "uint8";
-
-let pipelinePromise: Promise<{ pipe: DepthEstimationPipeline; device: Device }> | null = null;
-
-async function pickBackend(): Promise<{ device: Device; dtype: DType }> {
-  const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<{ features: Set<string> } | null> } }).gpu;
-  const adapter = await gpu?.requestAdapter().catch(() => null);
-  if (!adapter) return { device: "wasm", dtype: "uint8" };
-  return { device: "webgpu", dtype: adapter.features.has("shader-f16") ? "q4f16" : "q4" };
-}
+let pipelinePromise: Promise<{ pipe: DepthEstimationPipeline; device: string }> | null = null;
 
 async function createPipeline(onProgress: (info: ProgressInfo) => void) {
-  const { device, dtype } = await pickBackend();
-  try {
-    const pipe = await pipeline("depth-estimation", MODEL_ID, { device, dtype, progress_callback: onProgress });
-    return { pipe: pipe as DepthEstimationPipeline, device };
-  } catch (err) {
-    if (device === "wasm") throw err;
-    // WebGPU is present but unusable (driver bugs, blocklists); fall back to the CPU build.
-    console.warn("WebGPU depth pipeline failed, falling back to WASM:", err);
-    const pipe = await pipeline("depth-estimation", MODEL_ID, {
-      device: "wasm",
-      dtype: "uint8",
-      progress_callback: onProgress,
-    });
-    return { pipe: pipe as DepthEstimationPipeline, device: "wasm" as const };
-  }
+  const pipe = await pipeline("depth-estimation", MODEL_ID, {
+    device: "wasm",
+    dtype: DTYPE,
+    progress_callback: onProgress,
+  });
+  return { pipe: pipe as DepthEstimationPipeline, device: "wasm" };
 }
 
 const post = (msg: WorkerResponse) => self.postMessage(msg);

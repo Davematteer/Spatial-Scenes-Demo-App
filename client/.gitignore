@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Model weights and ONNX Runtime, prepared at build time by scripts/fetch-model.ts
+public/models
+public/ort

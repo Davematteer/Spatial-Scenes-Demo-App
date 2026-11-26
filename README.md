@@ -18,13 +18,9 @@ The logic lives in `client/src/lib/depthService.ts` and tries three options in o
 
 Depth Anything V2 isn't served by any Hugging Face Inference Provider, so the Spaces are called through their Gradio HTTP API, straight from the browser. No API key or backend is needed. Each visitor uses their own anonymous ZeroGPU quota, which runs out after a handful of images per day. Once both Spaces fail, the app goes straight to in-browser inference for the next hour.
 
-The in-browser model is quantized to keep the one-time download small, and the browser caches it:
+The in-browser fallback is fully self-hosted: `client/scripts/fetch-model.ts` runs before `dev` and `build`. It downloads the model into `client/public/models` and copies the ONNX Runtime binary into `client/public/ort`, so nothing is fetched from huggingface.co or a CDN at runtime. Both folders are gitignored.
 
-| Backend | Weights | Download | Mean depth error vs fp32 |
-| --- | --- | --- | --- |
-| WebGPU with `shader-f16` | q4f16 | 19 MB | ~2% |
-| WebGPU without f16 | q4 | 27 MB | ~2% |
-| WASM (CPU) | uint8 | 27 MB | ~1% |
+The weights are q4f16, which is 19 MB instead of 99 MB for fp32, with about 2% mean depth error. It's the best variant under Cloudflare's 25 MiB per-file limit. Inference runs on the CPU (WASM), because the WebGPU-capable runtime is 25.6 MiB and doesn't fit.
 
 If all three options fail, the user sees an error toast. Images larger than 2048px are downscaled first.
 

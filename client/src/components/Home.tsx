@@ -22,7 +22,9 @@ function describeStatus(status: DepthStatus | null): { title: string; detail: st
       const mb = (bytes: number) => (bytes / 1e6).toFixed(1);
       return {
         title: "Downloading the depth model to your browser...",
-        detail: `${mb(status.loaded)} / ${mb(status.total)} MB, only needed once`,
+        detail: status.total
+          ? `${mb(status.loaded)} / ${mb(status.total)} MB, only needed once`
+          : "Only needed once",
       };
     }
     case "local-inference":
