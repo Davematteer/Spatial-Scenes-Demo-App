@@ -24,6 +24,22 @@ The weights are q4f16, which is 19 MB instead of 99 MB for fp32, with about 2% m
 
 If all three options fail, the user sees an error toast. Images larger than 2048px are downscaled first.
 
+## User uploads
+
+After rendering an upload, the **Post** button shares the spatial scene publicly in the **User Uploads** tab, next to Showcase. Anyone can post.
+
+- `client/worker/index.ts` is a small Cloudflare Worker API (`/api/posts`). It stores each post's image and depth map in the R2 bucket `spatial-scenes-uploads`. All other paths are served as static files.
+- Uploads are checked for real image content (JPEG, PNG, WEBP or AVIF; the depth map must be a PNG), capped at 8 MB per file, and limited to 5 posts per minute per IP.
+- To remove a post, delete its two objects (`posts/<id>/image` and `posts/<id>/depth`) in the Cloudflare dashboard under R2.
+
+One-time setup (the deploy fails until the bucket exists):
+
+```sh
+cd client
+bunx wrangler login
+bunx wrangler r2 bucket create spatial-scenes-uploads
+```
+
 ## Stack
 
 - [React](https://react.dev) + [Vite](https://vite.dev) + [Tailwind CSS](https://tailwindcss.com)
@@ -35,7 +51,8 @@ If all three options fail, the user sees an error toast. Images larger than 2048
 
 ```sh
 bun install
-bun run dev:client
+bun run dev:client          # the site, on Vite
+cd client && bun run dev:api  # the posts API, with a local simulated R2 (proxied at /api)
 ```
 
 ## Credits

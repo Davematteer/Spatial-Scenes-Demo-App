@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { ArrowLeft, Check, Loader2, Maximize2, Minimize2, Send } from "lucide-react";
 import SpatialScene from "./ParallaxEngine/SpatialScene";
+import { createPost, POSTS_QUERY_KEY } from "@/lib/postsApi";
 
 interface HomeDetailsProps {
   imageSrc: string;
@@ -39,6 +42,22 @@ export default function HomeDetails({ imageSrc, depthSrc, fileName, onBack, dark
     fitToImage?: boolean;
   } | null>(null);
   const openUploadFullscreen = () => setFullscreenData({ imageSrc, depthSrc, fitToImage: true });
+
+  const queryClient = useQueryClient();
+  const postMutation = useMutation({
+    mutationFn: () =>
+      createPost({ imageUrl: imageSrc, depthUrl: depthSrc, title: fileName.replace(/\.[^.]+$/, "") }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: POSTS_QUERY_KEY });
+      toast.success("Posted to User Uploads", {
+        description: "Anyone visiting the site can now view your spatial scene.",
+      });
+    },
+    onError: (err) => {
+      toast.error("Couldn't post your scene", { description: err.message });
+    },
+  });
+  const isPosted = postMutation.isSuccess;
   const isFullscreen = fullscreenData !== null;
 
   // Lock body scroll when in fullscreen mode
@@ -83,7 +102,26 @@ export default function HomeDetails({ imageSrc, depthSrc, fileName, onBack, dark
             <ArrowLeft className="w-3.5 h-3.5" /> Upload Another Image
           </button>
 
-          {/* Fullscreen Trigger (Main Uploaded Image) */}
+          <div className="flex items-center gap-2">
+          <button
+            onClick={() => postMutation.mutate()}
+            disabled={postMutation.isPending || isPosted}
+            title="Share this spatial scene in User Uploads"
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+              isPosted
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500 cursor-default"
+                : "border-emerald-600 bg-emerald-500 text-zinc-950 hover:bg-emerald-400 cursor-pointer disabled:opacity-70 disabled:cursor-wait"
+            }`}
+          >
+            {postMutation.isPending ? (
+              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Posting...</>
+            ) : isPosted ? (
+              <><Check className="w-3.5 h-3.5" /> Posted</>
+            ) : (
+              <><Send className="w-3.5 h-3.5" /> Post</>
+            )}
+          </button>
+
           <button
             onClick={openUploadFullscreen}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
@@ -94,6 +132,7 @@ export default function HomeDetails({ imageSrc, depthSrc, fileName, onBack, dark
           >
             <Maximize2 className="w-3.5 h-3.5" /> View Fullscreen
           </button>
+          </div>
         </div>
 
         {/* INLINE THREE.JS WORKSPACE */}

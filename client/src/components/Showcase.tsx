@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Maximize2, Minimize2, ArrowRight, ArrowLeft } from "lucide-react";
 import SpatialScene from "./ParallaxEngine/SpatialScene";
+import UserUploads from "./UserUploads";
 
 interface ShowcaseItem {
   id: number;
@@ -19,9 +20,55 @@ interface ShowcaseProps {
 
 const ITEMS_PER_PAGE = 3;
 
+type Tab = "showcase" | "uploads";
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: "showcase", label: "Showcase" },
+  { id: "uploads", label: "User Uploads" },
+];
+
+function TabToggle({ tab, onChange, darkMode }: { tab: Tab; onChange: (tab: Tab) => void; darkMode: boolean }) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Gallery"
+      className={`relative inline-flex p-1 rounded-full border ${
+        darkMode ? "border-zinc-800 bg-zinc-950/60" : "border-zinc-200 bg-white/70"
+      } backdrop-blur-sm`}
+    >
+      {TABS.map(({ id, label }) => {
+        const selected = tab === id;
+        return (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={selected}
+            onClick={() => onChange(id)}
+            className={`relative px-4 sm:px-5 py-1.5 text-[10px] sm:text-[11px] uppercase tracking-[0.25em] font-bold font-mono rounded-full cursor-pointer transition-colors duration-300 ${
+              selected
+                ? darkMode ? "text-zinc-950" : "text-white"
+                : darkMode ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-400 hover:text-zinc-700"
+            }`}
+          >
+            {selected && (
+              <motion.span
+                layoutId="gallery-tab-pill"
+                className={`absolute inset-0 rounded-full ${darkMode ? "bg-zinc-100" : "bg-zinc-950"}`}
+                transition={{ type: "spring", stiffness: 400, damping: 34 }}
+              />
+            )}
+            <span className="relative">{label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Showcase({ darkMode }: ShowcaseProps) {
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [tab, setTab] = useState<Tab>("showcase");
   const showcaseRef = useRef<HTMLDivElement>(null);
 
   // Lock scroll when viewing fullscreen
@@ -155,12 +202,16 @@ export default function Showcase({ darkMode }: ShowcaseProps) {
       {/* Divider */}
       <div className="flex items-center my-16">
         <div className={`flex-grow h-[1px] ${darkMode ? "bg-zinc-800" : "bg-zinc-200"}`}></div>
-        <span className="px-8 text-xs uppercase tracking-[0.3em] text-zinc-400 font-bold font-mono">
-          Showcase ({currentPage}/{totalPages})
-        </span>
+        <div className="px-4 sm:px-8">
+          <TabToggle tab={tab} onChange={setTab} darkMode={darkMode} />
+        </div>
         <div className={`flex-grow h-[1px] ${darkMode ? "bg-zinc-800" : "bg-zinc-200"}`}></div>
       </div>
 
+      {tab === "uploads" ? (
+        <UserUploads darkMode={darkMode} />
+      ) : (
+      <>
       {/* SHOWCASE SECTIONS */}
       <div className="space-y-36">
         <AnimatePresence mode="wait">
@@ -300,6 +351,8 @@ export default function Showcase({ darkMode }: ShowcaseProps) {
             Next <ArrowRight className="w-4 h-4" />
           </button>
         </div>
+      )}
+      </>
       )}
 
       {/* FULLSCREEN DIMENSIONAL PORTAL OVERLAY */}

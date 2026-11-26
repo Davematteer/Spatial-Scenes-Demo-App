@@ -26,3 +26,6 @@ dist-ssr
 # Model weights and ONNX Runtime, prepared at build time by scripts/fetch-model.ts
 public/models
 public/ort
+
+# Local Wrangler state
+.wrangler

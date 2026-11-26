@@ -32,7 +32,8 @@ export default defineConfig({
 	server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000', // Points to Hono runtime
+        // The posts API Worker, run locally with `bun run dev:api` (wrangler dev).
+        target: 'http://localhost:8787',
         changeOrigin: true,
         secure: false,
       },
