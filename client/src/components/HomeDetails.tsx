@@ -32,7 +32,13 @@ const duplicatedItems = [...showcaseItems, ...showcaseItems];
 
 export default function HomeDetails({ imageSrc, depthSrc, fileName, onBack, darkMode }: HomeDetailsProps) {
   // Track specific image/depth state for the active fullscreen view (null when closed)
-  const [fullscreenData, setFullscreenData] = useState<{ imageSrc: string; depthSrc: string } | null>(null);
+  // fitToImage is true only for the user's upload; built-in examples keep their fixed framing.
+  const [fullscreenData, setFullscreenData] = useState<{
+    imageSrc: string;
+    depthSrc: string;
+    fitToImage?: boolean;
+  } | null>(null);
+  const openUploadFullscreen = () => setFullscreenData({ imageSrc, depthSrc, fitToImage: true });
   const isFullscreen = fullscreenData !== null;
 
   // Lock body scroll when in fullscreen mode
@@ -79,7 +85,7 @@ export default function HomeDetails({ imageSrc, depthSrc, fileName, onBack, dark
 
           {/* Fullscreen Trigger (Main Uploaded Image) */}
           <button
-            onClick={() => setFullscreenData({ imageSrc, depthSrc })}
+            onClick={openUploadFullscreen}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
               darkMode 
                 ? "bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800" 
@@ -91,17 +97,24 @@ export default function HomeDetails({ imageSrc, depthSrc, fileName, onBack, dark
         </div>
 
         {/* INLINE THREE.JS WORKSPACE */}
-        <div className="relative group h-[500px] w-full">
+        <div className="w-full">
           {!isFullscreen && (
-            <SpatialScene imageSrc={imageSrc} depthSrc={depthSrc} isFullscreen={false} />
+            <SpatialScene
+              imageSrc={imageSrc}
+              depthSrc={depthSrc}
+              isFullscreen={false}
+              fitToImage
+              overlay={
+                <button
+                  onClick={openUploadFullscreen}
+                  className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-black/60 hover:bg-black/80 text-white border border-white/10 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+                  title="Expand to Fullscreen"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
+              }
+            />
           )}
-          <button
-            onClick={() => setFullscreenData({ imageSrc, depthSrc })}
-            className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-black/60 hover:bg-black/80 text-white border border-white/10 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
-            title="Expand to Fullscreen"
-          >
-            <Maximize2 className="w-4 h-4" />
-          </button>
         </div>
 
         {/* METRICS & DETAILS */}
@@ -209,12 +222,16 @@ export default function HomeDetails({ imageSrc, depthSrc, fileName, onBack, dark
 
             {/* Expansive Centered Canvas Container */}
             <div className="flex-1 w-full flex items-center justify-center rounded-2xl overflow-hidden relative z-10 pointer-events-auto">
-              <div className="w-full h-full max-h-[80vh] max-w-[90vw]">
-                {/* Dynamically renders the state of whatever image triggered the modal */}
-                <SpatialScene 
-                  imageSrc={fullscreenData.imageSrc} 
-                  depthSrc={fullscreenData.depthSrc} 
-                  isFullscreen={true} 
+              <div
+                className={`w-full h-full max-h-[80vh] max-w-[90vw] ${
+                  fullscreenData.fitToImage ? "flex items-center justify-center" : ""
+                }`}
+              >
+                <SpatialScene
+                  imageSrc={fullscreenData.imageSrc}
+                  depthSrc={fullscreenData.depthSrc}
+                  isFullscreen={true}
+                  fitToImage={fullscreenData.fitToImage}
                 />
               </div>
 

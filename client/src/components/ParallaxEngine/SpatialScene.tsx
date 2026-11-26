@@ -17,12 +17,53 @@ interface SpatialSceneProps {
   imageSrc: string;
   depthSrc: string;
   isFullscreen?: boolean;
+  /**
+   * Size the canvas to the image's own aspect ratio and frame the whole image,
+   * instead of the fixed-height, cropped framing used by the built-in examples.
+   */
+  fitToImage?: boolean;
+  /** Extra UI layered over the canvas (e.g. an expand button). */
+  overlay?: React.ReactNode;
+}
+
+/**
+ * In fit mode, the fraction of the image visible on screen. Slightly under 1 so the
+ * stretched pixels at the mesh edges stay hidden as the camera drifts.
+ */
+const FIT_VISIBLE_FRACTION = 0.95;
+
+/**
+ * Depth value that stays on the image plane; farther pixels sink back, nearer ones come forward.
+ * Centered (0.5) framing makes far edges shrink away from the frame, which the default framing
+ * hides by cropping in. Fit mode keeps far pixels close to the plane so its edges stay filled.
+ */
+const DEPTH_BIAS_DEFAULT = 0.5;
+const DEPTH_BIAS_FIT = 0.15;
+
+function useImageAspect(src: string, enabled: boolean): number | null {
+  const [aspect, setAspect] = useState<{ src: string; value: number } | null>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let active = true;
+    const img = new Image();
+    img.onload = () => {
+      if (active && img.naturalHeight) setAspect({ src, value: img.naturalWidth / img.naturalHeight });
+    };
+    img.src = src;
+    return () => {
+      active = false;
+    };
+  }, [src, enabled]);
+
+  return aspect?.src === src ? aspect.value : null;
 }
 
 function SpatialPhoto({
   imageSrc,
   depthSrc,
   isFullscreen = false,
+  fitToImage = false,
   tiltRef,
 }: SpatialSceneProps & { tiltRef: React.RefObject<{ x: number; y: number; isSupported: boolean }> }) {
   const meshRef = useRef<THREE.Mesh>(null);
@@ -46,6 +87,11 @@ function SpatialPhoto({
         if (!active) return;
         const pCamera = camera as THREE.PerspectiveCamera;
         pCamera.fov = isFullscreen ? 55 : 40;
+        if (fitToImage) {
+          // The canvas matches the image's aspect ratio, so fitting the height fits the width too.
+          const halfFov = THREE.MathUtils.degToRad(pCamera.fov / 2);
+          pCamera.position.z = (planeHeight * FIT_VISIBLE_FRACTION) / (2 * Math.tan(halfFov));
+        }
         pCamera.updateProjectionMatrix();
       });
     }
@@ -53,7 +99,7 @@ function SpatialPhoto({
     return () => {
       active = false;
     };
-  }, [isFullscreen, camera]);
+  }, [isFullscreen, fitToImage, planeHeight, camera]);
 
   useMemo(() => {
     imageTexture.wrapS = THREE.ClampToEdgeWrapping;
@@ -102,11 +148,13 @@ function SpatialPhoto({
         uDepth: { value: depthTexture },
         uDisplacement: { value: 0.4 }, // Balanced displacement
         uParallax: { value: new THREE.Vector2(0, 0) },
+        uDepthBias: { value: fitToImage ? DEPTH_BIAS_FIT : DEPTH_BIAS_DEFAULT },
       },
       vertexShader: `
         uniform sampler2D uDepth;
         uniform float uDisplacement;
         uniform vec2 uParallax;
+        uniform float uDepthBias;
 
         varying vec2 vUv;
 
@@ -127,7 +175,7 @@ function SpatialPhoto({
           depth = smoothstep(0.05, 0.95, depth);
           depth = pow(depth, 1.4);
 
-          float centeredDepth = depth - 0.5;
+          float centeredDepth = depth - uDepthBias;
 
           // Edge Attenuation to kill tearing along sharp depth transitions
           float d1 = texture2D(uDepth, uv).r;
@@ -157,7 +205,7 @@ function SpatialPhoto({
         }
       `,
     });
-  }, [imageTexture, depthTexture]);
+  }, [imageTexture, depthTexture, fitToImage]);
 
   return (
     <mesh ref={meshRef} material={material}>
@@ -170,7 +218,10 @@ export default function SpatialScene({
   imageSrc,
   depthSrc,
   isFullscreen = false,
+  fitToImage = false,
+  overlay,
 }: SpatialSceneProps) {
+  const imageAspect = useImageAspect(imageSrc, fitToImage);
   // Store live tilt data inside a Ref to avoid performance-killing React state updates
   const tiltRef = useRef({ x: 0, y: 0, isSupported: false });
   const initialOrientation = useRef<{ beta: number | null; gamma: number | null }>({ beta: null, gamma: null });
@@ -240,12 +291,28 @@ export default function SpatialScene({
     }
   };
 
+  // Wait for the image's dimensions so the canvas never renders at the wrong shape.
+  if (fitToImage && imageAspect === null) {
+    return <div className="w-full" style={{ height: isFullscreen ? "80vh" : "70vh" }} />;
+  }
+
+  // In fit mode the canvas takes the image's shape, capped to the available width and height.
+  const fitStyle: React.CSSProperties | undefined =
+    fitToImage && imageAspect
+      ? {
+          aspectRatio: imageAspect,
+          width: `min(100%, calc(${isFullscreen ? "80vh" : "70vh"} * ${imageAspect}))`,
+        }
+      : undefined;
+
   return (
     <div
-      className={`relative w-full rounded-2xl overflow-hidden transition-all duration-300 ${
-        isFullscreen ? "h-full min-h-[70vh]" : "h-[500px]"
+      style={fitStyle}
+      className={`group relative rounded-2xl overflow-hidden transition-all duration-300 ${
+        fitToImage ? "mx-auto" : `w-full ${isFullscreen ? "h-full min-h-[70vh]" : "h-[500px]"}`
       }`}
     >
+      {overlay}
       {/* iOS Gesture Trigger Overlay */}
       {requiresPermission && !permissionGranted && (
         <div className="absolute inset-0 bg-black/60 z-10 flex flex-col items-center justify-center gap-3 p-4 text-center">
@@ -275,6 +342,7 @@ export default function SpatialScene({
             imageSrc={imageSrc}
             depthSrc={depthSrc}
             isFullscreen={isFullscreen}
+            fitToImage={fitToImage}
             tiltRef={tiltRef}
           />
         </Suspense>
